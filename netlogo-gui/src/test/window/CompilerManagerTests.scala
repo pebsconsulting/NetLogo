@@ -53,7 +53,7 @@ class CompilerManagerTests extends FunSuite {
       widgets.foreach { w =>
         compilerManager.handle(new CompileMoreSourceEvent(w))
         w match {
-          case ig: DummyIGWidget => compilerManager.handle(new WidgetAddedEvent(ig))
+          case ig: DummyIGWidget => compilerManager.handle(new WidgetAddedEvent(ig, null))
           case _ =>
         }
       }
