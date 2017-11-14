@@ -213,7 +213,6 @@ object FileManager {
     tab:            TemporaryCodeTab,
     modelTracker:   ModelTracker,
     modelConverter: ModelConversion,
-    workspace:      AbstractWorkspace,
     controller:     FileController)
   extends ExceptionCatchingAction(I18N.gui.get("menu.edit.convertToNetLogoSix"), tab)
   with MenuAction{
@@ -222,7 +221,7 @@ object FileManager {
 
     override def action(): Unit = {
       tab.filename.right.toOption
-        .flatMap(name => FileIO.resolvePath(name, Paths.get(workspace.getModelPath)))
+        .flatMap(name => FileIO.resolvePath(name, Paths.get(modelTracker.getModelPath)))
         .foreach { path =>
         val version =
           if (modelTracker.currentVersion.is3D) "NetLogo 3D 5.3.1"
@@ -434,6 +433,6 @@ class FileManager(workspace: AbstractWorkspace,
   }
 
   def convertTabAction(t: TemporaryCodeTab): Action = {
-    new ConvertNlsAction(t, modelTracker, modelConverter, workspace, controller)
+    new ConvertNlsAction(t, modelTracker, modelConverter, controller)
   }
 }

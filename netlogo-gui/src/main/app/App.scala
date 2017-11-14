@@ -230,6 +230,7 @@ object App {
     val appConfig = new AppConfig(pico)
     appConfig.workspaceConfig = config
     appConfig.menuBarFactory = menuBarFactory
+    appConfig.is3D = is3D
     new App(appConfig, frame)
   }
 
@@ -343,28 +344,75 @@ Controllable {
   var aggregateManager: AggregateManagerInterface = null
   var appHandler: Object = null
   var colorDialog: ColorDialog = null
-  var dirtyMonitor: DirtyMonitor = null
-  var glViewManager: GLViewManagerInterface = null
   var labManager:LabManagerInterface = null
   var logger: Logger = null
-  var menuBar: MenuBar = null
   var recentFilesMenu: RecentFilesMenu = null
   var params: CommandLineParameters = null
-  private var _fileManager: FileManager = null
-  private var _workspace: GUIWorkspace = null
-  private var _tabs: Tabs = null
 
   val isMac = System.getProperty("os.name").startsWith("Mac")
 
-  def workspace: GUIWorkspace = _workspace
-  def tabs: Tabs = _tabs
-
   def version =
-    if (config.compiler.dialect.is3D) ThreeDVersion.version
+    if (appConfig.is3D) ThreeDVersion.version
     else TwoDVersion.version
 
-  locally {
+  private def versionObject =
+    Version.getCurrent(appConfig.is3D)
 
+  performPreWorkspaceInitialization()
+  val workspace = new AppWorkspace(config)
+  initializeAppWithWorkspace(workspace)
+
+  private val shapeChangeListener =
+    new ShapeChangeListener(workspace, workspace.world)
+  // we have this only to prevent scalac from yelling at us
+  require(shapeChangeListener != null)
+
+  private val modelLoader =
+    pico.getComponent(classOf[ModelLoader])
+
+  val tabs = pico.getComponent(classOf[Tabs])
+  initializeAppWithTabs(tabs)
+
+  val glViewManager = pico.getComponent(classOf[GLViewManagerInterface])
+  activateAppWithGLViewManager(glViewManager)
+
+  val dirtyMonitor: DirtyMonitor = {
+    val titler = (file: Option[String]) => file map externalFileTitle getOrElse modelTitle
+    pico.add(classOf[DirtyMonitor], "org.nlogo.app.DirtyMonitor",
+      new ComponentParameter, new ComponentParameter, new ComponentParameter, new ConstantParameter(titler))
+    pico.getComponent(classOf[DirtyMonitor])
+  }
+
+  frame.addLinkComponent(dirtyMonitor)
+
+  val menuBar: MenuBar = pico.getComponent(classOf[MenuBar])
+
+  val fileManager = {
+    pico.add(classOf[FileManager],
+      "org.nlogo.app.FileManager",
+      new ComponentParameter(),
+      new ConstantParameter(modelTracker),
+      new ComponentParameter(), new ComponentParameter(), new ComponentParameter(),
+      new ConstantParameter(menuBar), new ConstantParameter(menuBar),
+      new ConstantParameter(versionObject))
+    pico.getComponent(classOf[FileManager])
+  }
+  activateAppWithFileManager(fileManager)
+
+  locally {
+    org.nlogo.api.Exceptions.setHandler(this)
+    pico.addComponent(this)
+  }
+
+  class AppWorkspace(config: WorkspaceConfig) extends GUIWorkspace(config) {
+    override def newRenderer: RendererInterface = {
+      val r = pico.getComponent(classOf[RendererInterface])
+      if (r == null) throw new RuntimeException("Invalid Renderer!")
+      r
+    }
+  }
+
+  private def performPreWorkspaceInitialization(): Unit = {
     frame.addLinkComponent(this)
 
     org.nlogo.swing.Utils.setSystemLookAndFeel()
@@ -384,59 +432,36 @@ Controllable {
     pico.addComponent(config.world)
     pico.addComponent(classOf[AgentMonitorManager], monitorManager)
     pico.add("org.nlogo.render.Renderer")
+    frame.addLinkComponent(listenerManager)
+  }
 
-    class AppWorkspace(config: WorkspaceConfig) extends GUIWorkspace(config) {
-      override def newRenderer: RendererInterface = {
-        val r = pico.getComponent(classOf[RendererInterface])
-        if (r == null) throw new RuntimeException("Invalid Renderer!")
-        r
-      }
-    }
-
-    _workspace = new AppWorkspace(config)
-
-    pico.addComponent(_workspace)
-
+  private def initializeAppWithWorkspace(workspace: AppWorkspace): Unit = {
+    pico.addComponent(workspace)
     frame.addLinkComponent(workspace)
     frame.addLinkComponent(new ExtensionAssistant(frame))
+  }
 
-    _tabs = pico.getComponent(classOf[Tabs])
-
+  private def initializeAppWithTabs(tabs: Tabs): Unit = {
     config.controlSet match {
-      case a: AppControlSet => a.tabs = Some(_tabs)
+      case a: AppControlSet => a.tabs = Some(tabs)
       case _ =>
     }
-
     pico.addComponent(tabs.interfaceTab.getInterfacePanel)
     frame.getContentPane.add(tabs, java.awt.BorderLayout.CENTER)
     frame.addLinkComponent(new CompilerManager(workspace, config.world, tabs.codeTab, Option(aggregateManager).toSeq))
-    frame.addLinkComponent(listenerManager)
-
-    glViewManager = pico.getComponent(classOf[GLViewManagerInterface])
-    glViewManager.addKeyListener(_tabs.interfaceTab.iP)
-    workspace.init(glViewManager)
-    frame.addLinkComponent(glViewManager)
-
-    org.nlogo.api.Exceptions.setHandler(this)
-    pico.addComponent(this)
   }
 
-  private val shapeChangeListener =
-    new ShapeChangeListener(workspace, workspace.world)
-  // we have this only to prevent scalac from yelling at us
-  require(shapeChangeListener != null)
+  private def activateAppWithGLViewManager(glViewManager: GLViewManagerInterface): Unit = {
+    glViewManager.addKeyListener(tabs.interfaceTab.iP)
+    workspace.init(glViewManager)
+    frame.addLinkComponent(glViewManager)
+  }
 
-  private val modelLoader =
-    pico.getComponent(classOf[ModelLoader])
-
-  /**
-   * Quits NetLogo by exiting the JVM.  Asks user for confirmation first
-   * if they have unsaved changes. If the user confirms, calls System.exit(0).
-   */
-  // part of controlling API; used by e.g. the Mathematica-NetLogo link
-  // - ST 8/21/07
-  @throws(classOf[UserCancelException])
-  def quit(){ fileManager.quit() }
+  private def activateAppWithFileManager(manager: FileManager): Unit = {
+    frame.addLinkComponent(manager)
+    recentFilesMenu = new RecentFilesMenu(manager)
+    frame.addLinkComponent(recentFilesMenu)
+  }
 
   private[app] def finishStartup(appHandler: Object,
     params: CommandLineParameters,
@@ -450,7 +475,6 @@ Controllable {
         I18N.errors.get("org.nlogo.boot.args.logDirectoryWithoutLogging"),
         "NetLogo", JOptionPane.DEFAULT_OPTION)
     }
-    val app = pico.getComponent(classOf[App])
     val currentModelAsString = {() =>
       val is3D = modelTracker.currentVersion.is3D
       modelLoader.sourceString(modelTracker.model, ModelReader.modelSuffix(is3D)).get
@@ -470,27 +494,10 @@ Controllable {
     labManager = pico.getComponent(classOf[LabManagerInterface])
     frame.addLinkComponent(labManager)
 
-    val titler = (file: Option[String]) => file map externalFileTitle getOrElse modelTitle
-    pico.add(classOf[DirtyMonitor], "org.nlogo.app.DirtyMonitor",
-      new ComponentParameter, new ComponentParameter, new ComponentParameter, new ConstantParameter(titler))
-    dirtyMonitor = pico.getComponent(classOf[DirtyMonitor])
-    frame.addLinkComponent(dirtyMonitor)
-
-    val menuBar = pico.getComponent(classOf[MenuBar])
-
-    pico.add(classOf[FileManager],
-      "org.nlogo.app.FileManager",
-      new ComponentParameter(),
-      new ConstantParameter(modelTracker),
-      new ComponentParameter(), new ComponentParameter(), new ComponentParameter(),
-      new ConstantParameter(menuBar), new ConstantParameter(menuBar),
-      new ConstantParameter(currentVersion))
-    setFileManager(pico.getComponent(classOf[FileManager]))
+    activateMenuBar(menuBar)
+    frame.setJMenuBar(menuBar)
 
     tabs.init(fileManager, dirtyMonitor, Plugins.load(pico): _*)
-
-    app.setMenuBar(menuBar)
-    frame.setJMenuBar(menuBar)
 
     org.nlogo.window.RuntimeErrorDialog.init(frame)
 
@@ -522,6 +529,12 @@ Controllable {
     menuBarFactory.actions = allActions ++ tabs.permanentMenuActions
   }
 
+  private def activateMenuBar(menuBar: MenuBar): Unit = {
+    tabs.setMenu(menuBar)
+    allActions.foreach(menuBar.offerAction)
+    Option(recentFilesMenu).foreach(_.setMenu(menuBar))
+  }
+
   def startLogging(loggingConfig: String, logDirectory: Option[String]) {
     if(new java.io.File(loggingConfig).exists) {
       val username =
@@ -538,6 +551,15 @@ Controllable {
     else JOptionPane.showConfirmDialog(null, I18N.gui.getN("tools.loggingMode.fileDoesNotExist", loggingConfig),
       "NetLogo", JOptionPane.DEFAULT_OPTION)
   }
+
+  /**
+   * Quits NetLogo by exiting the JVM.  Asks user for confirmation first
+   * if they have unsaved changes. If the user confirms, calls System.exit(0).
+   */
+  // part of controlling API; used by e.g. the Mathematica-NetLogo link
+  // - ST 8/21/07
+  @throws(classOf[UserCancelException])
+  def quit(){ fileManager.quit() }
 
   ///
   private def loadDefaultModel(params: CommandLineParameters, currentVersion: Version){
@@ -578,13 +600,13 @@ Controllable {
   lazy val openColorDialog = new OpenColorDialog(frame)
 
   private var switchAction: SwitchArityAction =
-    new SwitchArityAction(! modelTracker.currentVersion.is3D, this)
+    new SwitchArityAction(! modelTracker.currentVersion.is3D, fileManager, this)
 
   def handle(e: LoadModelEvent): Unit = {
     val to3D = ! Version.is3D(e.model.version)
     if (to3D != switchAction.to3D) {
       menuBar.revokeAction(switchAction)
-      switchAction = new SwitchArityAction(to3D, this)
+      switchAction = new SwitchArityAction(to3D, fileManager, this)
       menuBar.offerAction(switchAction)
     }
   }
@@ -617,26 +639,6 @@ Controllable {
     fileManager.actions
 
     osSpecificActions ++ generalActions
-  }
-
-  def setMenuBar(menuBar: MenuBar): Unit = {
-    if (menuBar != this.menuBar) {
-      this.menuBar = menuBar
-      tabs.setMenu(menuBar)
-      allActions.foreach(menuBar.offerAction)
-      Option(recentFilesMenu).foreach(_.setMenu(menuBar))
-    }
-  }
-
-  def fileManager: FileManager = _fileManager
-
-  def setFileManager(manager: FileManager): Unit = {
-    if (manager != _fileManager) {
-      _fileManager = manager
-      frame.addLinkComponent(manager)
-      recentFilesMenu = new RecentFilesMenu(manager)
-      frame.addLinkComponent(recentFilesMenu)
-    }
   }
 
   def switchArity(is3D: Boolean): Unit = {
