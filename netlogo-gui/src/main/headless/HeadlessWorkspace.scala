@@ -15,7 +15,8 @@ import org.nlogo.core.{ CompilerException, Femto, Model, Output, Program, Update
 import org.nlogo.agent.{ CompilationManagement, World, World2D, World3D }
 import org.nlogo.nvm.{ CompilerFlags, DefaultCompilerServices, LabInterface, Optimizations, PresentationCompilerInterface }
 import org.nlogo.workspace.{ DefaultAbstractWorkspace, HeadlessCatchAll, HubNetManagerFactory, RuntimeError, WorkspaceEvent }
-import org.nlogo.fileformat, fileformat.{ NLogoFormat, NLogoXFormat, ScalaXmlElementFactory }
+import org.nlogo.fileformat, fileformat.{ NLogoFormat, NLogoXFormat }
+import org.nlogo.xmllib.ScalaXmlElementFactory
 
 import scala.io.Codec
 
