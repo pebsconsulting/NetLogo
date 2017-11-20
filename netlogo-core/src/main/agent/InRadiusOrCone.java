@@ -32,7 +32,8 @@ public strictfp class InRadiusOrCone
 
     List<Agent> result = new ArrayList<Agent>();
     Patch startPatch;
-    double startX, startY, dx, dy, dx2, dy2;
+    double startX, startY;
+    int dx, dy, dx2, dy2;
 
     if (agent instanceof Turtle) {
       Turtle startTurtle = (Turtle) agent;
@@ -88,27 +89,29 @@ public strictfp class InRadiusOrCone
           // away from the patch centers in opposite directions, that makes a total
           // of square root of 2 additional distance we need to take into account.
           // TODO fix this:
-          dx = (patch.pxcor-world.minPxcor()) - (startX-world.minPxcor());
+
+          dx = (patch.pxcor-world.minPxcor()) - ((int)startX-world.minPxcor());
           dx2 = dx * dx;
           if (world.wrappingAllowedInX()) {
-            dx = world.worldWidth() - (patch.pxcor - world.minPxcor()) + (startX - world.minPxcor());
-            dx2 = StrictMath.min(dx2, dx * dx);
-            dx = world.worldWidth() - (startX - world.minPxcor()) + (patch.pxcor - world.minPxcor());
-            dx2 = StrictMath.min(dx2, dx * dx);
+            dx = world.worldWidth() - (patch.pxcor - world.minPxcor()) + ((int)startX - world.minPxcor());
+            dx2 = Math.min(dx2, dx * dx);
+            dx = world.worldWidth() - ((int)startX - world.minPxcor()) + (patch.pxcor - world.minPxcor());
+            dx2 = Math.min(dx2, dx * dx);
           }
 
-          dy = (patch.pycor - world.minPycor()) - (startY - world.minPycor());
+          dy = (patch.pycor - world.minPycor()) - ((int)startY - world.minPycor());
           dy2 = dy * dy;
           if (world.wrappingAllowedInY()) {
-            dy = world.worldHeight() - (patch.pycor - world.minPycor()) + (startY - world.minPycor());
-            dy2 = StrictMath.min(dy2, dy * dy);
-            dy = world.worldHeight() - (startY-world.minPycor()) + (patch.pycor-world.minPycor());
-            dy2 = StrictMath.min(dy2, dy * dy);
+            dy = world.worldHeight() - (patch.pycor - world.minPycor()) + ((int)startY - world.minPycor());
+            dy2 = Math.min(dy2, dy * dy);
+            dy = world.worldHeight() - ((int)startY-world.minPycor()) + (patch.pycor-world.minPycor());
+            dy2 = Math.min(dy2, dy * dy);
           }
 
           if (world.rootsTable().gridRoot(dx2 + dy2) > radius + 1.415) {
             continue;
           }
+
           for (Turtle turtle : patch.turtlesHere()) {
             if ((sourceSet == world.turtles()
                     || (sourceSet.isBreedSet() && sourceSet == turtle.getBreed())
@@ -154,7 +157,7 @@ public strictfp class InRadiusOrCone
     List<Agent> result = new ArrayList<Agent>();
     double half = angle / 2;
 
-    double dx, dy, dx2, dy2;
+    int dx, dy, dx2, dy2;
 
     HashSet<Long> cachedIDs = null;
     if (! sourceSet.isBreedSet()) {
@@ -216,22 +219,22 @@ public strictfp class InRadiusOrCone
           // of square root of 2 additional distance we need to take into account.
           // TODO fix this:
 
-          dx = (patch.pxcor-world.minPxcor()) - (startTurtle.xcor()-world.minPxcor());
+          dx = (patch.pxcor-world.minPxcor()) - ((int)startTurtle.xcor()-world.minPxcor());
           dx2 = dx * dx;
           if (world.wrappingAllowedInX()) {
-            dx = worldWidth - (patch.pxcor - world.minPxcor()) + (startTurtle.xcor() - world.minPxcor());
-            dx2 = StrictMath.min(dx2, dx * dx);
-            dx = worldWidth - (startTurtle.xcor() - world.minPxcor()) + (patch.pxcor - world.minPxcor());
-            dx2 = StrictMath.min(dx2, dx * dx);
+            dx = worldWidth - (patch.pxcor - world.minPxcor()) + ((int)startTurtle.xcor() - world.minPxcor());
+            dx2 = Math.min(dx2, dx * dx);
+            dx = worldWidth - ((int)startTurtle.xcor() - world.minPxcor()) + (patch.pxcor - world.minPxcor());
+            dx2 = Math.min(dx2, dx * dx);
           }
 
-          dy = (patch.pycor - world.minPycor()) - (startTurtle.ycor() - world.minPycor());
+          dy = (patch.pycor - world.minPycor()) - ((int)startTurtle.ycor() - world.minPycor());
           dy2 = dy * dy;
           if (world.wrappingAllowedInY()) {
-            dy = worldHeight - (patch.pycor - world.minPycor()) + (startTurtle.ycor() - world.minPycor());
-            dy2 = StrictMath.min(dy2, dy * dy);
-            dy = worldHeight - (startTurtle.ycor()-world.minPycor()) + (patch.pycor-world.minPycor());
-            dy2 = StrictMath.min(dy2, dy * dy);
+            dy = worldHeight - (patch.pycor - world.minPycor()) + ((int)startTurtle.ycor() - world.minPycor());
+            dy2 = Math.min(dy2, dy * dy);
+            dy = worldHeight - ((int)startTurtle.ycor()-world.minPycor()) + (patch.pycor-world.minPycor());
+            dy2 = Math.min(dy2, dy * dy);
           }
 
           if (world.rootsTable().gridRoot(dx2 + dy2) <= radius + 1.415) {
