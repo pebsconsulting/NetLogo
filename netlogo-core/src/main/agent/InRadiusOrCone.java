@@ -34,7 +34,7 @@ public strictfp class InRadiusOrCone
 
     List<Agent> result = new ArrayList<Agent>();
     Patch startPatch;
-    double startX, startY;
+    double startX, startY, gRoot;
     int dx, dy;
 
     if (agent instanceof Turtle) {
@@ -100,13 +100,15 @@ public strictfp class InRadiusOrCone
           if (dy > world.worldHeight()/2)
             dy = world.worldHeight() - dy;
 
-          if (world.rootsTable().gridRoot(dx * dx + dy * dy) > radius + 1.415) {
+          gRoot = world.rootsTable().gridRoot(dx * dx + dy * dy);
+
+          if (gRoot > radius + 1.415) {
             continue;
           }
 
-//          if (world.protractor().distance(patch.pxcor, patch.pycor, startX, startY, wrap) <= radius - 0.7071) {
-//            patch.turtlesHere().forEach(t -> result.add(t));
-//          } else {
+          if (gRoot <= radius - 1.415) {
+            patch.turtlesHere().forEach(t -> result.add(t));
+          } else {
             for (Turtle turtle : patch.turtlesHere()) {
               if ((sourceSet == world.turtles()
                       || (sourceSet.isBreedSet() && sourceSet == turtle.getBreed())
@@ -115,7 +117,7 @@ public strictfp class InRadiusOrCone
                 result.add(turtle);
               }
             }
-//          }
+          }
         }
     }
     return result;
@@ -153,6 +155,7 @@ public strictfp class InRadiusOrCone
     List<Agent> result = new ArrayList<Agent>();
     double half = angle / 2;
 
+    double gRoot;
     int dx, dy;
 
     HashSet<Long> cachedIDs = null;
@@ -223,7 +226,10 @@ public strictfp class InRadiusOrCone
           if (dy > world.worldHeight()/2)
             dy = world.worldHeight() - dy;
 
-          if (world.rootsTable().gridRoot(dx * dx + dy * dy) <= radius + 1.415) {
+          gRoot = world.rootsTable().gridRoot(dx * dx + dy * dy);
+
+          if (gRoot <= radius + 1.415) {
+
             for (Turtle turtle : patch.turtlesHere()) {
               // loop through our world copies
               outer:
@@ -232,18 +238,19 @@ public strictfp class InRadiusOrCone
                   // any turtle set with a non-null print name is either
                   // the set of all turtles, or a breed agentset - ST 2/19/04
                   if ((sourceSet == world.turtles()
-                          || (sourceSet.isBreedSet()  && sourceSet == turtle.getBreed())
+                          || (sourceSet.isBreedSet() && sourceSet == turtle.getBreed())
                           || cachedIDs.contains(new Long(turtle.id())))
                           && isInCone(turtle.xcor() + worldWidth * worldOffsetX,
-                                      turtle.ycor() + worldHeight * worldOffsetY,
-                                      startTurtle.xcor(), startTurtle.ycor(),
-                                      radius, half, startTurtle.heading())) {
+                          turtle.ycor() + worldHeight * worldOffsetY,
+                          startTurtle.xcor(), startTurtle.ycor(),
+                          radius, half, startTurtle.heading())) {
                     result.add(turtle);
                     break outer;
                   }
                 }
               }
             }
+
           }
         }
       }
