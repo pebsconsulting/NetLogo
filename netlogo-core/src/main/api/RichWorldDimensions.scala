@@ -2,7 +2,7 @@
 
 package org.nlogo.api
 
-import org.nlogo.core.WorldDimensions
+import org.nlogo.core.{ WorldDimensions, WorldDimensions3D }
 
 object RichWorldDimensions {
   implicit class WorldDimensionsEnriched(w: WorldDimensions) {
