@@ -321,7 +321,7 @@ class FileManager(workspace: AbstractWorkspace,
   }
 
   private def runLoad(linkParent: Container, uri: URI, model: Model, modelType: ModelType): Unit = {
-    ReconfigureWorkspaceUI(linkParent, uri, modelType, model, workspace.compilerServices)
+    ReconfigureWorkspaceUI(linkParent, uri, modelType, model, workspace.compilerServices, modelTracker.currentVersion)
   }
 
   private def loadModel(uri: URI, openModel: (OpenModel.Controller) => Option[Model]): Option[Model] = {

@@ -199,7 +199,8 @@ object ModelResaver {
       })
       None
     }
-    def shouldOpenModelOfDifferingArity(arity: Int,version: String): Boolean = true
+    def shouldOpenModelOfDifferingArity(arity: Int,version: String): OpenModel.VersionResponse =
+      OpenModel.OpenAsSaved
     def shouldOpenModelOfLegacyVersion(currentVersion: String, openVersion: String): Boolean = true
     def shouldOpenModelOfUnknownVersion(currentVersion: String, openVersion: String): Boolean = false
   }

@@ -3,17 +3,18 @@
 package org.nlogo.app
 
 import javax.swing.{ JFrame, JOptionPane }
+import java.awt.{ Dimension, Frame, Toolkit }
 import java.awt.event.ActionEvent
+import java.net.URI
 
 import org.nlogo.agent.{ World2D, World3D }
-import java.awt.{ Dimension, Frame, Toolkit }
 import org.nlogo.api._
 import org.nlogo.app.codetab.{ ExternalFileManager, TemporaryCodeTab }
 import org.nlogo.app.common.{ CodeToHtml, Events => AppEvents, FileActions, FindDialog, SaveModelingCommonsAction }
 import org.nlogo.app.interfacetab.{ InterfaceToolBar, WidgetPanel }
 import org.nlogo.app.tools.{ AgentMonitorManager, GraphicsPreview, Preferences, PreferencesDialog, PreviewCommandsEditor }
 import org.nlogo.awt.UserCancelException
-import org.nlogo.core.{ AgentKind, CompilerException, Dialect, Femto, I18N }
+import org.nlogo.core.{ AgentKind, CompilerException, Dialect, Femto, I18N, Model }
 import org.nlogo.fileformat
 import org.nlogo.xmllib.ScalaXmlElementFactory
 import org.nlogo.log.Logger
@@ -90,7 +91,7 @@ object App {
     //   - ST 8/19/03
     val pico = new Pico()
     addBasicPicoConfig(pico, bootAs3D)
-    app = startConfiguredApp(bootAs3D, pico)
+    app = startConfiguredApp(bootAs3D, pico, params.openTarget)
 
     org.nlogo.awt.EventQueue.invokeAndWait(()=>app.finishStartup(appHandler, params, Version.getCurrent(bootAs3D)))
   }
@@ -101,6 +102,7 @@ object App {
   case class CommandLineMagic(name: String) extends OpenTarget
   case class CommandLineModel(path: String, isLaunch: Boolean) extends OpenTarget
   case class CommandLineURL(url: String) extends OpenTarget
+  case class ParsedModel(uri: URI, model: Model, modelType: ModelType) extends OpenTarget
 
   private def processCommandLineArguments(args: Array[String], default: CommandLineParameters): CommandLineParameters = {
     def printAndExit(s:String){ println(s); sys.exit(0) }
@@ -223,11 +225,11 @@ object App {
     pico.addComponent(classOf[Tabs])
   }
 
-  def startConfiguredApp(is3D: Boolean, pico: Pico): App = {
+  def startConfiguredApp(is3D: Boolean, pico: Pico, openTarget: OpenTarget): App = {
     val menuBarFactory = new StatefulMenuBarFactory()
     val frame = new AppFrame()
     pico.addComponent(menuBarFactory)
-    val config = configureWorkspace(frame, pico, is3D)
+    val config = configureWorkspace(frame, pico, is3D, openTarget)
     val appConfig = new AppConfig(pico)
     appConfig.workspaceConfig = config
     appConfig.menuBarFactory = menuBarFactory
@@ -235,7 +237,10 @@ object App {
     new App(appConfig, frame)
   }
 
-  def configureWorkspace(frame: JFrame with LinkParent with LinkRoot, pico: Pico, is3D: Boolean): WorkspaceConfig = {
+  def configureWorkspace(frame: JFrame with LinkParent with LinkRoot,
+    pico: Pico,
+    is3D: Boolean,
+    openTarget: OpenTarget): WorkspaceConfig = {
     val dialect =
       if (is3D) Femto.scalaSingleton[Dialect]("org.nlogo.api.NetLogoThreeDDialect")
       else      Femto.scalaSingleton[Dialect]("org.nlogo.api.NetLogoLegacyDialect")
@@ -255,7 +260,10 @@ object App {
       useOptimizer = Version.useOptimizer)
 
     val messageCenter = new WorkspaceMessageCenter()
-    val modelTracker = new ModelTrackerImpl(messageCenter)
+    val modelTracker = openTarget match {
+      case ParsedModel(_, m, _) => new ModelTrackerImpl(messageCenter, m)
+      case _ => new ModelTrackerImpl(messageCenter)
+    }
 
     val controlSet = new AppControlSet()
     val listenerManager = new NetLogoListenerManager
@@ -323,6 +331,7 @@ LoadModelEvent.Handler with
 ModelSavedEvent.Handler with
 AppEvents.SwitchedTabsEvent.Handler with
 AboutToQuitEvent.Handler with
+SwitchArityEvent.Handler with
 ZoomedEvent.Handler with
 Controllable {
 
@@ -334,7 +343,7 @@ Controllable {
   val modelTracker = config.modelTracker
   val controlSet = config.controlSet
 
-  import App.{ CommandLineParameters, CommandLineModel, CommandLineMagic, CommandLineURL, EmptyModel }
+  import App.{ CommandLineParameters, CommandLineModel, CommandLineMagic, CommandLineURL, EmptyModel, ParsedModel }
 
   val monitorManager: MonitorManager = config.monitorManager
 
@@ -578,6 +587,8 @@ Controllable {
       case CommandLineMagic(name) => workspace.magicOpen(name)
       case CommandLineURL(url) =>
         new LoadModelFromUrl(fileManager, workspace)(url, currentVersion)
+      case ParsedModel(uri, m, modelType) =>
+        fileManager.openModel(uri, m, modelType)
     }
 
   }
@@ -642,7 +653,7 @@ Controllable {
     osSpecificActions ++ generalActions
   }
 
-  def switchArity(is3D: Boolean): Unit = {
+  def switchArity(is3D: Boolean, openTarget: App.OpenTarget = EmptyModel): Unit = {
     val newVersion = Version.getCurrent(is3D)
     Splash.beginSplash(newVersion)
     org.nlogo.awt.EventQueue.invokeLater {
@@ -650,14 +661,14 @@ Controllable {
         frame.setVisible(false)
         val pico = new Pico()
         App.addBasicPicoConfig(pico, is3D)
-        val newApp = App.startConfiguredApp(is3D, pico)
+        val newApp = App.startConfiguredApp(is3D, pico, openTarget)
         glViewManager.close()
         frame.removeAll()
         frame.dispose()
         workspace.dispose()
         App.app = newApp
         newApp.finishStartup(appHandler,
-          params.copy(openTarget = EmptyModel),
+          params.copy(openTarget = openTarget),
           newVersion)
     }
   }
@@ -687,6 +698,10 @@ Controllable {
           logger.deleteSessionFiles()
       case _ =>
     }
+  }
+
+  def handle(e: SwitchArityEvent): Unit = {
+    switchArity(e.is3D, App.ParsedModel(e.modelURI, e.model, e.modelType))
   }
 
   private def reload() {
