@@ -18,7 +18,7 @@ import
 
 import
   org.nlogo.{ core, api, xmllib },
-    core.{ model, I18N, Model, Shape, Widget },
+    core.{ model, I18N, Model, Shape, UpdateMode, View, Widget, WorldDimensions },
       model.{ LinkShapeXml, VectorShapeXml, WidgetXml, XmlShape },
       Shape.{ LinkShape, VectorShape },
     api.{ FileIO, TwoDVersion },
@@ -104,6 +104,12 @@ class NLogoXFormat(factory: ElementFactory) extends ModelFormat[NLogoXFormat.Sec
 
   object InterfaceComponent extends ComponentSerialization[Section, NLogoXFormat] {
     val componentName = "org.nlogo.modelsection.interface"
+
+    lazy val defaultView: View = View(left = 210, top = 10, right = 649, bottom = 470,
+      dimensions = WorldDimensions(-16, 16, -16, 16, 13.0), fontSize = 10, updateMode = UpdateMode.Continuous,
+      showTickCounter = true, frameRate = 30)
+
+    override def addDefault = ((m: Model) => m.copy(widgets = Seq(defaultView)))
 
     def serialize(m: Model): Section = {
       val widgets = m.widgets.map((w: Widget) => WidgetXml.write(w, factory))

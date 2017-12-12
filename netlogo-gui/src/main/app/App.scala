@@ -245,6 +245,13 @@ object App {
       if (is3D) Femto.scalaSingleton[Dialect]("org.nlogo.api.NetLogoThreeDDialect")
       else      Femto.scalaSingleton[Dialect]("org.nlogo.api.NetLogoLegacyDialect")
 
+    val initialModel =
+      (openTarget, is3D) match {
+        case (ParsedModel(_, m, _), _) => m
+        case (_, true)                 => Model(version = ThreeDVersion.version)
+        case (_, false)                => Model(version = TwoDVersion.version)
+      }
+
     val world =
       if (is3D) new World3D()
       else      new World2D()
@@ -260,11 +267,7 @@ object App {
       useOptimizer = Version.useOptimizer)
 
     val messageCenter = new WorkspaceMessageCenter()
-    val modelTracker = openTarget match {
-      case ParsedModel(_, m, _) => new ModelTrackerImpl(messageCenter, m)
-      case _ => new ModelTrackerImpl(messageCenter)
-    }
-
+    val modelTracker = new ModelTrackerImpl(messageCenter, initialModel)
     val controlSet = new AppControlSet()
     val listenerManager = new NetLogoListenerManager
     val monitorManager = new AgentMonitorManager(frame)
@@ -286,7 +289,7 @@ object App {
 
     val workspaceConfig =
       WorkspaceConfig
-        .default
+        .empty
         .withControlSet(controlSet)
         .withExternalFileManager(pico.getComponent(classOf[ExternalFileManager]))
         .withFrame(frame)
