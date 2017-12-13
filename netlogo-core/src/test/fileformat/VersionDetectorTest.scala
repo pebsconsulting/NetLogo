@@ -17,6 +17,7 @@ class VersionDetectorTest extends FunSuite {
   val threeDModel = Model("").copy(
     version = ThreeDVersion.version,
     widgets = Seq(View(dimensions = WorldDimensions3D(0, 0, 0, 0, 0, 0, 12))))
+
   def modelAsString(m: Model, format: String) =
     loader.sourceString(m, format).get
 
