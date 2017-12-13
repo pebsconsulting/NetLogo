@@ -27,7 +27,7 @@ class TestCompileAll extends FunSuite with SlowTest {
     // This is a LS model specifically for testing version problems.
     path.getFileName.toString.endsWith("5.x.nlogo") ||
     // This is a LS model designed to test widgets with errors.
-    path.getFileName.toString.endsWith("LS-Widgets.nlogo")
+    path.getFileName.toString.endsWith("LS-Widgets.nlogox")
   }
 
   // and those are exempt from having their preview commands tested:

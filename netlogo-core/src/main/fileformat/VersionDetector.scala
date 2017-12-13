@@ -14,8 +14,10 @@ object VersionDetector {
       Some(TwoDVersion)
     else if (path.endsWith(".nlogo3d"))
       Some(ThreeDVersion)
-    else if (path.endsWith(".nlogox")) // TODO: This won't be correct once we allow for 3D models
-      loader.readModel(Paths.get(path).toUri).toOption.map(m => Version.getCurrent(m.version))
+    else if (path.endsWith(".nlogox"))
+      loader.readModel(Paths.get(path).toUri)
+        .toOption
+        .map(m => Version.getCurrent(m.version))
     else
       None
   }
