@@ -57,10 +57,10 @@ object ChecksumsAndPreviews {
     def needsManualPreview(previewCommands: String) =
       previewCommands contains "need-to-manually-make-preview-for-this-model"
     def okPath(path: String) =
-      List("HUBNET", "GOGO", "VIEW2.5D", "/CODE EXAMPLES/SOUND/")
+      List("/3D/", "HUBNET", "GOGO", "VIEW2.5D", "/CODE EXAMPLES/SOUND/")
         .forall(!path.toUpperCase.containsSlice(_))
     def remake(path: String) {
-      val previewPath = path.replaceFirst("\\.nlogo$", ".png")
+      val previewPath = path.replaceFirst("\\.nlogox$", ".png")
       try {
         val runner = PreviewCommandsRunner.fromModelPath(new WorkspaceFactory, path)
         println("making preview for: " + path)

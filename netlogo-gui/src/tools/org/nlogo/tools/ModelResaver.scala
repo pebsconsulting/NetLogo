@@ -50,32 +50,36 @@ object ModelResaver {
   def main(args: Array[String]): Unit = {
     System.setProperty("org.nlogo.preferHeadless", "true")
 
-    if (args.length > 0) resaveModels(args.toSeq)
-    else                 resaveAllModels()
+    // recurse and resave
+    if (args.length == 2 && args(0) == "-r") resaveModelsRecursive(args(1))
+    else if (args.length > 0)                resaveModels(args.toSeq)
+    else                                     resaveAllModels()
   }
 
   def resaveModels(paths: Seq[String]): Unit = {
     val (systemDynamicsModels, otherModels) =
       paths.map((s: String) => Paths.get(s)).partition(_.toString.contains("System Dynamics"))
-
-    if (systemDynamicsModels.isEmpty)
-      System.setProperty("java.awt.headless", "true")
-
-    otherModels.foreach(p => resaveModel(p))
-
-    if (systemDynamicsModels.nonEmpty)
-      resaveSystemDynamicsModels(systemDynamicsModels)
-
-    System.exit(0)
+    resaveCollection(new PathCollection(otherModels, systemDynamicsModels))
   }
 
-  def resaveAllModels(): Unit = {
-    traverseModels(Paths.get(modelsRoot), resaveModel _)
+  def resaveModelsRecursive(pathString: String): Unit =
+    resaveCollection(traverseModels(Paths.get(pathString), Seq("BIN", "SRC", "PROJECT")))
 
-    val failedModels = resaveSystemDynamicsModels(systemDynamicsModels)
+  def resaveAllModels(): Unit =
+    resaveCollection(traverseModels(Paths.get(modelsRoot)))
 
-    println("FAILED MODELS:")
-    println(failedModels.mkString("\n"))
+  def resaveCollection(collection: PathCollection): Unit = {
+    collection.normalModels.foreach(resaveModel _)
+
+    println(s"Resaved ${collection.normalModels.length} non-system-dynamics models")
+    if (collection.systemDynamicsModels.nonEmpty) {
+      val failedModels = resaveSystemDynamicsModels(collection.systemDynamicsModels)
+
+      println("FAILED MODELS:")
+      println(failedModels.mkString("\n"))
+    } else {
+      System.exit(0)
+    }
   }
 
   lazy val literalParser =
@@ -110,14 +114,18 @@ object ModelResaver {
     }
   }
 
-  def traverseModels(modelRoot: Path, resave: Path => Unit): Unit = {
-    Files.walkFileTree(modelRoot, new java.util.HashSet(), Int.MaxValue, new ResaveVisitor(resave))
+  def traverseModels(modelRoot: Path, excludeFolders: Seq[String] = Seq("TEST", "BIN", "PROJECT", "SRC")): PathCollection = {
+    val collection = new PathCollection(excludeFolders = excludeFolders)
+    Files.walkFileTree(modelRoot, collection)
+    collection
   }
 
-  class ResaveVisitor(resave: Path => Unit) extends FileVisitor[Path] {
+  class PathCollection(
+    var normalModels: Seq[Path] = Seq.empty[Path],
+    var systemDynamicsModels: Seq[Path] = Seq.empty[Path],
+    excludeFolders: Seq[String] = Seq.empty)
+    extends FileVisitor[Path] {
     import java.nio.file.attribute.BasicFileAttributes
-
-    val excludeFolders = Seq("TEST", "BIN", "PROJECT", "SRC")
 
     def postVisitDirectory(path: Path, error: java.io.IOException): FileVisitResult = {
       if (error != null) throw error
@@ -134,8 +142,12 @@ object ModelResaver {
 
     def visitFile(path: Path, attrs: BasicFileAttributes): FileVisitResult = {
       val fileName = path.getFileName.toString
-      if (fileName.endsWith(".nlogo") || fileName.endsWith(".nlogo3d"))
-        resave(path)
+      if (fileName.endsWith(".nlogo") || fileName.endsWith(".nlogo3d")) {
+        if (path.toString.contains("System Dynamics"))
+          systemDynamicsModels = path +: systemDynamicsModels
+        else
+          normalModels = path +: normalModels
+      }
       FileVisitResult.CONTINUE
     }
 
