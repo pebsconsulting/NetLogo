@@ -363,6 +363,8 @@ Controllable {
   var params: CommandLineParameters = null
 
   val isMac = System.getProperty("os.name").startsWith("Mac")
+  val runningInMacWrapper =
+    Option(System.getProperty("org.nlogo.mac.appClassName")).nonEmpty
 
   def version =
     if (appConfig.is3D) ThreeDVersion.version
@@ -536,7 +538,7 @@ Controllable {
 
     Splash.endSplash()
     frame.setVisible(true)
-    if(isMac){
+    if (runningInMacWrapper) {
       appHandler.getClass.getDeclaredMethod("ready", classOf[AnyRef]).invoke(appHandler, this)
     }
     menuBarFactory.actions = allActions ++ tabs.permanentMenuActions
@@ -627,7 +629,8 @@ Controllable {
   }
 
   lazy val allActions: Seq[javax.swing.Action] = {
-    val osSpecificActions = if (isMac) Seq() else Seq(openPreferencesDialog, openAboutDialog)
+    val osSpecificActions =
+      if (runningInMacWrapper) Seq() else Seq(openPreferencesDialog, openAboutDialog)
 
     val workspaceActions = org.nlogo.window.WorkspaceActions(workspace)
 
