@@ -160,7 +160,7 @@ org.nlogo.prim.etc.$common.notThatManyAgentsExist = Requested {0} random agents 
 
 org.nlogo.prim.etc._otherend.incorrectLink = {0} is not linked by {1}.
 
-org.nlogo.prim._reduce.emptyListInvalidInput = The list argument to 'reduce' must not be empty.
+org.nlogo.prim._reduce.emptyListInvalidInput = The list argument to ''reduce'' must not be empty.
 org.nlogo.prim._report.canOnlyUseInToReport =  {0} can only be used inside TO-REPORT.
 org.nlogo.prim._report.mustImmediatelyBeUsedInToReport = {0} must be immediately inside a TO-REPORT.
 
