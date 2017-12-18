@@ -3,6 +3,21 @@
 package org.nlogo.api
 
 object LabProtocol {
+  @deprecated("6.1.0", "use LabProtocol.fromValueSets instead")
+  def apply(name: String,
+            setupCommands: String,
+            goCommands: String,
+            finalCommands: String,
+            repetitions: Int,
+            sequentialRunOrder: Boolean,
+            runMetricsEveryStep: Boolean,
+            timeLimit: Int,
+            exitCondition: String,
+            metrics: List[String],
+            valueSets: List[RefValueSet]) =
+              new LabProtocol(name, setupCommands, goCommands, finalCommands, repetitions,
+                sequentialRunOrder, runMetricsEveryStep, timeLimit, exitCondition, metrics, valueSets)
+
   def fromValueSets(name: String,
             setupCommands: String,
             goCommands: String,

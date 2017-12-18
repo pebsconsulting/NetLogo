@@ -7,6 +7,10 @@ trait ParameterSet {
   def iterator: Iterator[List[(String, AnyRef)]]
 }
 
+object CartesianProductParameterSet {
+  def empty: CartesianProductParameterSet = CartesianProductParameterSet(1, true, Nil)
+}
+
 case class CartesianProductParameterSet(repetitions: Int, sequentialRunOrder: Boolean, valueSets: List[RefValueSet]) extends ParameterSet {
   def countRuns = repetitions * valueSets.map(_.toList.size).product
 
