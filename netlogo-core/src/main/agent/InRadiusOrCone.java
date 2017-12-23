@@ -74,51 +74,47 @@ public strictfp class InRadiusOrCone
     }
 
     for (int i = 0; i < curr; i++) {
-        Patch patch = patches[i];
+      Patch patch = patches[i];
 
-        if (sourceSet.kind() == AgentKindJ.Patch()) {
-          if (world.protractor().distance(patch.pxcor, patch.pycor, startX, startY, wrap) <= radius &&
-              (sourceSet == world.patches() || cachedIDs.contains(new Long(patch.id())))) {
-            result.add(patch);
-          }
-        } else if (sourceSet.kind() == AgentKindJ.Turtle()) {
-          // Only check patches that might have turtles within the radius on them.
-          // The 1.415 (square root of 2) adjustment is necessary because it is
-          // possible for portions of a patch to be within the circle even though
-          // the center of the patch is outside the circle.  Both turtles, the
-          // turtle in the center and the turtle in the agentset, can be as much
-          // as half the square root of 2 away from its patch center.  If they're
-          // away from the patch centers in opposite directions, that makes a total
-          // of square root of 2 additional distance we need to take into account.
-          // TODO fix this:
+      if (sourceSet.kind() == AgentKindJ.Patch()) {
+        if (world.protractor().distance(patch.pxcor, patch.pycor, startX, startY, wrap) <= radius &&
+            (sourceSet == world.patches() || cachedIDs.contains(new Long(patch.id())))) {
+          result.add(patch);
+        }
+      } else if (sourceSet.kind() == AgentKindJ.Turtle()) {
+        // Only check patches that might have turtles within the radius on them.
+        // The 1.415 (square root of 2) adjustment is necessary because it is
+        // possible for portions of a patch to be within the circle even though
+        // the center of the patch is outside the circle.  Both turtles, the
+        // turtle in the center and the turtle in the agentset, can be as much
+        // as half the square root of 2 away from its patch center.  If they're
+        // away from the patch centers in opposite directions, that makes a total
+        // of square root of 2 additional distance we need to take into account.
+        // TODO fix this:
 
-          dx = Math.abs(patch.pxcor - (int)startX);
-          if (dx > world.worldWidth()/2)
-            dx = world.worldWidth() - dx;
+        dx = Math.abs(patch.pxcor - (int)startX);
+        if (dx > world.worldWidth()/2)
+          dx = world.worldWidth() - dx;
 
-          dy = Math.abs(patch.pycor - (int)startY);
-          if (dy > world.worldHeight()/2)
-            dy = world.worldHeight() - dy;
+        dy = Math.abs(patch.pycor - (int)startY);
+        if (dy > world.worldHeight()/2)
+          dy = world.worldHeight() - dy;
 
-          gRoot = world.rootsTable().gridRoot(dx * dx + dy * dy);
+        gRoot = world.rootsTable().gridRoot(dx * dx + dy * dy);
 
-          if (gRoot > radius + 1.415) {
-            continue;
-          }
+        if (gRoot > radius + 1.415) {
+          continue;
+        }
 
-          if (gRoot <= radius - 1.415) {
-            patch.turtlesHere().forEach(t -> result.add(t));
-          } else {
-            for (Turtle turtle : patch.turtlesHere()) {
-              if ((sourceSet == world.turtles()
-                      || (sourceSet.isBreedSet() && sourceSet == turtle.getBreed())
-                      || cachedIDs.contains(new Long(turtle.id())))
-                      && world.protractor().distance(turtle.xcor(), turtle.ycor(), startX, startY, wrap) <= radius) {
-                result.add(turtle);
-              }
-            }
+        for (Turtle turtle : patch.turtlesHere()) {
+          if ((sourceSet == world.turtles()
+                  || (sourceSet.isBreedSet() && sourceSet == turtle.getBreed())
+                  || cachedIDs.contains(new Long(turtle.id())))
+                  && (gRoot <= radius - 1.415 || world.protractor().distance(turtle.xcor(), turtle.ycor(), startX, startY, wrap) <= radius)) {
+            result.add(turtle);
           }
         }
+      }
     }
     return result;
   }
